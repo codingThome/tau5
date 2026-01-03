@@ -1,0 +1,60 @@
+name: Windows x64 Build
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Windows x64
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Qt installieren
+      - name: Install Qt 6.10.0
+      # Qt WebEngine ist wichtig!
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.10.0"
+          modules: "qtpositioning qtserialport qtwebchannel qtwebengine qtwebsockets"
+
+      # Elixir installieren
+      - name: Install Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.18.2"
+
+      # Windows Release bauen
+      - name: Build Release (Windows)
+        shell: cmd
+        working-directory: ${{github.workspace}}/bin/win
+        run: build-release.bat
+
+      # Server Tests (optional – kannst du löschen, falls es Probleme macht)
+      - name: Run BEAM tests
+        shell: cmd
+        working-directory: ${{github.workspace}}/server
+        run: mix test
+
+      # Release Health Check
+      - name: Release Health Check
+        shell: cmd
+        working-directory: ${{github.workspace}}
+        run: |
+          cd release\Tau5-for-Windows-*
+          tau5-gui.exe --check
+          tau5-node.exe --check
+
+      # Windows Build als Artifact hochladen
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tau5-windows-x64
+          path: release/Tau5-for-Windows-*
